@@ -24,7 +24,6 @@
 #define CHIP_WRITE_SPEED      16000000  // but this'll vary from person to person
 #define DATA_ORDER            MSBFIRST
 #define DATA_MODE             SPI_MODE0 
-#define HAS_SECURITY_REGISTER true
 
 // These probably shouldn't be hardcoded
 #define SPI_PAGE_SIZE   256
@@ -93,6 +92,8 @@
 #define REQ_PAGE_READ_TIMEOUT   6
 #define REQ_PAGE_WRITE_FAILURE  7
 
+// Chip configuration
+bool hasSecurityRegister = false;
 
 // Reused values, buffers, etc.
 #define ADDRESS_BUFFER_SIZE 4
@@ -131,6 +132,16 @@ void sendSpiInfo() {
   digitalWrite(SS, HIGH);
   SPI.endTransaction();
 
+  // Update local chip configuration info
+  if (manufacturerId == 0xC2) { // Macronix
+    hasSecurityRegister = true;
+  } else if (manufacturerId == 0x01) { // Spansion
+    hasSecurityRegister = false;
+  } else {
+    hasSecurityRegister = false; // Default for unknown chips
+  }
+
+  // Send response
   Serial.write(REQ_SUCCESS);
   Serial.write(manufacturerId);
   Serial.write(memoryType);
@@ -172,7 +183,7 @@ uint8_t getStatus() {
 }
 
 uint8_t getSecurityStatus() {
-  if (!HAS_SECURITY_REGISTER) {
+  if (!hasSecurityRegister) {
     return 0;
   }
 
@@ -338,7 +349,7 @@ void writeBlock() {
       break;
     }
     // Some chips (like mine) have other registers we can check
-    else if (HAS_SECURITY_REGISTER) {
+    else if (hasSecurityRegister) {
       uint8_t securityStatus = getSecurityStatus();
       
       if ((securityStatus & SPI_SECURITY_P_FAIL) != 0) {
