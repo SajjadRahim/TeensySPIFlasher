@@ -7,7 +7,7 @@
 // Digital pins
 #define WRITE_PROTECT 14  // WP#/SIO2
 #define RESET 15          // RESET#/SIO3
-/* The SPI library uses these pins by default (pin #s are for Teensy 4.1):
+/* The SPI library uses these pins by default (pin #s are for Teensy 4.0 and Teensy 4.1):
 - SS    Pin 10    CS# / Chip select
 - MOSI  Pin 11    SI/SIO0 / Controller Out Peripheral In
 - MISO  Pin 12    SO/SIO1 / Controller In Peripheral Out

@@ -1,7 +1,7 @@
 # *************************************************************************
 # TeensySPIFlasher.py v0.1
 #
-# Teensy 4.1 version by jakatackka@gmail.com
+# Teensy 4.0 and 4.1 version by jakatackka@gmail.com
 # 
 # *************************************************************************
 # SPIway.py - Teensy++ 2.0 SPI flasher for PS4
@@ -448,7 +448,7 @@ if __name__ == "__main__":
     VERSION_MAJOR = 0
     VERSION_MINOR = 1
 
-    print "TeensySPIFlasher v%d.%02d - Teensy++ 4.1 SPI Flasher for PS4" % (VERSION_MAJOR, VERSION_MINOR)
+    print "TeensySPIFlasher v%d.%02d - Teensy++ 4.0 and 4.1 SPI Flasher for PS4" % (VERSION_MAJOR, VERSION_MINOR)
     print "Copyright (C) 2024 jakatackka@gmail.com"
     print
 

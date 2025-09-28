@@ -1,4 +1,4 @@
-# Teensy 4.1 SPI Flasher by Jak Atackka
+# Teensy 4.0 and 4.1 SPI Flasher by Jak Atackka
 This is a basic utility for reading and writing to flash memory chips that use the SPI interface. This was originally written for flashing the NOR chip on a PS4, but it can be adapted to a variety of devices.
 
 It is partially based on hjudge's [SPIway utility](https://github.com/hjudges/NORway/tree/master), which was originally written for the Teensy 2.0++.
@@ -7,10 +7,8 @@ It is partially based on hjudge's [SPIway utility](https://github.com/hjudges/NO
 **WARNING**: Use this software at your own risk. The author accepts no responsibility for any consequences of using this software.
 
 # Supported Hardware
-- Teensy 4.1
-  - This should work on a Teensy 4.0 with some minor code changes
-  - This can likely be adapted to other Arduino controllers as well
-- Only the **Macronix MX25L25635F** is supported. Code changes are required to support the other chips.
+- Teensy 4.0 and 4.1. This can likely be adapted to other Arduino controllers as well
+- Only the **Macronix MX25L25635F** and **Spansion S25FL256L** are supported. Code changes are required to support the other chips.
 
 This has been tested with the NOR chip still attached to the motherboard.
 
@@ -30,7 +28,7 @@ To compile the code, simply open `TeensySPIFlasher/TeensySPIFlasher.ino` in the 
 ## Teensy Hardware Setup
 Follow the [MODDED WARFARE guide](https://www.youtube.com/watch?v=JxeSP1PJtEs) for installing a Teensy to quickly revert the PS4's hardware.
 
-For the Teensy 4.1, use the following pins:
+For the Teensy 4.0 or 4.1, use the following pins:
 - **CS#**: Pin 10
 - **SI/SIO0**: Pin 11
 - **SO/SIO1**: Pin 12
