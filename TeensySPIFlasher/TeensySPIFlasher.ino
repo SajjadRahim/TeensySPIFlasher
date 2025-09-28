@@ -43,7 +43,7 @@
 #define SPI_COMMAND_READ4B    0x13  // Read data bytes, starting from 4-byte address
 #define SPI_COMMAND_RDSCUR    0x2B  // Read security register
 #define SPI_COMMAND_CE        0x60  // Chip erase
-#define SPI_COMMAND_REMS      0x90  // Read electronic manufacturer and device ID
+#define SPI_COMMAND_RDID      0x9F  // Read ID (JEDEC Manufacturer ID)
 #define SPI_COMMAND_BE4B      0xDC  // Erase 64KB block by 4-byte address
 
 // Status registers. Taken directly from SPIway.c
@@ -124,18 +124,17 @@ void sendSpiInfo() {
   // Get SPI info
   SPI.beginTransaction(SPISettings(CHIP_READ_SPEED, DATA_ORDER, DATA_MODE));
   digitalWrite(SS, LOW);
-  SPI.transfer((uint8_t) SPI_COMMAND_REMS);
-  SPI.transfer((uint8_t) 0);
-  SPI.transfer((uint8_t) 0);
-  SPI.transfer((uint8_t) 0);
+  SPI.transfer((uint8_t) SPI_COMMAND_RDID);
   uint8_t manufacturerId = SPI.transfer(0);
-  uint8_t deviceId = SPI.transfer(0);
+  uint8_t memoryType = SPI.transfer(0);
+  uint8_t capacityCode = SPI.transfer(0);
   digitalWrite(SS, HIGH);
   SPI.endTransaction();
 
   Serial.write(REQ_SUCCESS);
   Serial.write(manufacturerId);
-  Serial.write(deviceId);
+  Serial.write(memoryType);
+  Serial.write(capacityCode);
   Serial.flush();
 }
 

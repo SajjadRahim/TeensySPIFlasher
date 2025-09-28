@@ -69,7 +69,8 @@ class SPIFlasher(TeensySerial):
     VERSION_MINOR = 0
     # SPI_DISABLE_PULLUPS = 0
     MF_ID = 0
-    DEVICE_ID = 0
+    RDID_MEMORY_TYPE = 0
+    RDID_CAPACITY = 0
     SPI_SECTOR_SIZE = 0
     SPI_BLOCK_COUNT = 0
     SPI_SECTORS_PER_BLOCK = 0
@@ -121,7 +122,7 @@ class SPIFlasher(TeensySerial):
             sys.exit(1)
 
 
-    # Read the manufacturer and device IDs
+    # Read the manufacturer, product family, and capacity code
     def readSpiIds(self):
     #     if (self.SPI_DISABLE_PULLUPS == 0):
     #         self.write(self.CMD_PULLUPS_ENABLE)
@@ -131,12 +132,14 @@ class SPIFlasher(TeensySerial):
         self.write(self.CMD_SPI_INFO)
         self.checkResponseCode()
 
-        spi_info = self.read(2)   
+        spi_info = self.read(3)
 
-        # print "Raw ID data: 0x%02x 0x%02x" % (ord(spi_info[0]), ord(spi_info[1]))
+        # print "Raw ID data: 0x%02x 0x%02x 0x%02x" % (ord(spi_info[0]), ord(spi_info[1]), ord(spi_info[2]))
 
         self.MF_ID = ord(spi_info[0])
-        self.DEVICE_ID = ord(spi_info[1])
+        self.RDID_MEMORY_TYPE = ord(spi_info[1])
+        self.RDID_CAPACITY = ord(spi_info[2])
+
 
 
     def write4ByteAddress(self, address):
@@ -267,8 +270,8 @@ class SPIFlasher(TeensySerial):
 
         if self.MF_ID == 0xC2:
             print "Chip manufacturer: Macronix (0x%02x)" % self.MF_ID
-            if self.DEVICE_ID == 0x18:
-                print "Chip type:         MX25L25635F (0x%02x)" % self.DEVICE_ID
+            if self.RDID_MEMORY_TYPE == 0x20 and self.RDID_CAPACITY == 0x19:
+                print "Chip type:         MX25L25635F (0x%02x, 0x%02x)" % (self.RDID_MEMORY_TYPE, self.RDID_CAPACITY)
                 self.SPI_BLOCK_COUNT = 512
                 self.SPI_SECTORS_PER_BLOCK = 16
                 self.SPI_SECTOR_SIZE = 0x1000
@@ -288,7 +291,23 @@ class SPIFlasher(TeensySerial):
             #     self.SPI_USE_3BYTE_CMDS = False
 
             else:
-                print "Chip type:         Unknown (0x%02x)" % self.DEVICE_ID
+                print "Chip type:         Unknown (0x%02x, 0x%02x)" % (self.RDID_MEMORY_TYPE, self.RDID_CAPACITY)
+                self.close()
+                sys.exit(1)
+
+        elif self.MF_ID == 0x01:
+            print "Chip manufacturer: Spansion/Cypress (0x%02x)" % self.MF_ID
+            if self.RDID_MEMORY_TYPE == 0x60 and self.RDID_CAPACITY == 0x19:
+                print "Chip type:         S25FL256L (0x%02x, 0x%02x)" % (self.RDID_MEMORY_TYPE, self.RDID_CAPACITY)
+                self.SPI_BLOCK_COUNT = 512
+                self.SPI_SECTORS_PER_BLOCK = 16
+                self.SPI_SECTOR_SIZE = 0x1000
+                self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
+                self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
+                self.SPI_ADDRESS_LENGTH = 4
+                self.SPI_USE_3BYTE_CMDS = False
+            else:
+                print "Chip type:         Unknown (0x%02x, 0x%02x)" % (self.RDID_MEMORY_TYPE, self.RDID_CAPACITY)
                 self.close()
                 sys.exit(1)
 
@@ -328,7 +347,7 @@ class SPIFlasher(TeensySerial):
         #         sys.exit(1)
         else:
             print "Chip manufacturer: Unknown (0x%02x)" % self.MF_ID
-            print "Chip type:         Unknown (0x%02x)" % self.DEVICE_ID
+            print "Chip type:         Unknown (0x%02x, 0x%02x)" % (self.RDID_MEMORY_TYPE, self.RDID_CAPACITY)
             self.close()
             sys.exit(1)
 
