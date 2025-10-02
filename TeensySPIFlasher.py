@@ -14,6 +14,9 @@
 
 import serial, time, datetime, sys
 
+VERSION_MAJOR = 0
+VERSION_MINOR = 2
+
 class TeensySerialError(Exception):
     pass
 
@@ -65,8 +68,6 @@ class SPIError(Exception):
     pass
 
 class SPIFlasher(TeensySerial):
-    VERSION_MAJOR = 0
-    VERSION_MINOR = 0
     # SPI_DISABLE_PULLUPS = 0
     MF_ID = 0
     RDID_MEMORY_TYPE = 0
@@ -445,9 +446,6 @@ def printHelp():
         
 
 if __name__ == "__main__":
-    VERSION_MAJOR = 0
-    VERSION_MINOR = 1
-
     print "TeensySPIFlasher v%d.%02d - Teensy++ 4.0 and 4.1 SPI Flasher for PS4" % (VERSION_MAJOR, VERSION_MINOR)
     print "Copyright (C) 2024 jakatackka@gmail.com"
     print

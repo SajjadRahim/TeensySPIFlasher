@@ -72,7 +72,7 @@
 
 // Some constants for interacting with our Python script
 #define VERSION_MAJOR		0
-#define VERSION_MINOR		1
+#define VERSION_MINOR		2
 
 // Command IDs
 #define CMD_SCRIPT_INFO     0
