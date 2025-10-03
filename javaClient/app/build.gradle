@@ -65,6 +65,8 @@ graalvmNative {
             imageName = 'TeensySPIFlasher'
             verbose = false
             jvmArgs.add('--enable-native-access=ALL-UNNAMED')
+            // TODO remove ParseRuntimeOptions
+            buildArgs.add('-H:+ParseRuntimeOptions')
         }
     }
 }
