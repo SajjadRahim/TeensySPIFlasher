@@ -44,6 +44,15 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
+// On Windows, set the tmpdir to be on the same drive as the code. Otherwise, native-image
+// fails with `Error > 'other' has different root`. On github actions, the default tmpdir
+// is on C:, and the code is on D:.
+if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+    def tmpDir = layout.buildDirectory.dir('tmp').get().asFile.absolutePath
+    file(tmpDir).mkdirs()
+    System.setProperty('java.io.tmpdir', tmpDir)
+}
+
 graalvmNative {
     binaries {
         main {

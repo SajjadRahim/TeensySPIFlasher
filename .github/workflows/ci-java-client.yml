@@ -1,0 +1,28 @@
+name: GraalVM Native Image builds
+on: [push, pull_request]
+jobs:
+  build:
+    name: Java Client/${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '25'
+          distribution: 'graalvm-community'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'false'
+
+      - name: Compile with Gradle plugin
+        working-directory: ./javaClient
+        run: ./gradlew nativeCompile
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: TeensySPIFlasher-${{ runner.os }}-${{ github.sha }}
+          path: javaClient/app/build/native/nativeCompile/TeensySPIFlasher*
