@@ -3,12 +3,15 @@
  */
 package org.example;
 
-public class App {
-    public String getGreeting() {
-        return "Hello World!";
-    }
+import com.fazecast.jSerialComm.SerialPort;
 
+public class App {
     public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+        System.out.println("Available Serial Ports:\n");
+        var ports =  SerialPort.getCommPorts();
+        for (int i = 0; i < ports.length; i++) {
+            var port = ports[i];
+            System.out.println(i + ": " + port.getSystemPortName() + " (" + port.getDescriptivePortName() + ")");   
+        }
     }
 }

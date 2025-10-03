@@ -1,0 +1,17 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "OSX/.*"
+      },
+      {
+        "pattern": "Linux/.*"
+      },
+      {
+        "pattern": "Windows/.*"
+      }
+    ],
+    "excludes": []
+  },
+  "bundles": []
+}

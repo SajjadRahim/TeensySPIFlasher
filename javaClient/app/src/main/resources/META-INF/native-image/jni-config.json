@@ -1,0 +1,7 @@
+[
+    {
+	"name":"com.fazecast.jSerialComm.SerialPort",
+	"allDeclaredFields" : true,
+	"methods":[{"name":"<init>","parameterTypes":[]}]
+    }
+]

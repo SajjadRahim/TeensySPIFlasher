@@ -25,6 +25,12 @@ dependencies {
 
     // This dependency is used by the application.
     implementation libs.guava
+    
+    implementation libs.jserialcomm
+}
+
+application {
+    applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -57,6 +63,8 @@ graalvmNative {
     binaries {
         main {
             imageName = 'TeensySPIFlasher'
+            verbose = false
+            jvmArgs.add('--enable-native-access=ALL-UNNAMED')
         }
     }
 }
