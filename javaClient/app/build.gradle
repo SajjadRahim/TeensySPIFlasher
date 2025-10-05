@@ -24,6 +24,7 @@ dependencies {
 
     implementation libs.guava
     implementation libs.jserialcomm
+    implementation libs.picocli
 }
 
 application {

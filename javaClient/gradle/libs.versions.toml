@@ -5,8 +5,10 @@
 guava = "33.4.6-jre"
 junit-jupiter = "5.12.1"
 jserialcomm = "2.11.2"
+picocli = "4.7.6"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 jserialcomm = { module = "com.fazecast:jSerialComm", version.ref = "jserialcomm" }
+picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
