@@ -18,14 +18,11 @@ repositories {
 }
 
 dependencies {
-    // Use JUnit Jupiter for testing.
     testImplementation libs.junit.jupiter
 
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-    // This dependency is used by the application.
     implementation libs.guava
-    
     implementation libs.jserialcomm
 }
 
@@ -36,7 +33,7 @@ application {
 // Apply a specific Java toolchain to ease working on different environments.
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+        languageVersion = JavaLanguageVersion.of(24)
     }
 }
 
@@ -65,8 +62,9 @@ graalvmNative {
             imageName = 'TeensySPIFlasher'
             verbose = false
             jvmArgs.add('--enable-native-access=ALL-UNNAMED')
-            // TODO remove ParseRuntimeOptions
-            buildArgs.add('-H:+ParseRuntimeOptions')
+
+            // Disable JVM commandline arguments
+            // buildArgs.add('-H:-ParseRuntimeOptions')
         }
     }
 }
