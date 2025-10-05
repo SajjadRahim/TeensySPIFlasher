@@ -8,7 +8,7 @@
         "pattern": "Linux/.*"
       },
       {
-        "pattern": "Windows/x86_64/.*"
+        "pattern": "Windows/.*"
       }
     ],
     "excludes": []
