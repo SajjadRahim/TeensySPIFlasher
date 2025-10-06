@@ -1,10 +1,12 @@
 package spiflasher;
 
+import java.io.IOException;
+
 import com.fazecast.jSerialComm.SerialPort;
 import picocli.CommandLine;
 
 public class App {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         CommandLine cmd = new CommandLine(new Options.Main());
 
         try {
@@ -54,10 +56,13 @@ public class App {
             // cmd.usage(System.err);
 
             System.exit(1);
+        } catch (ReportableException e) {
+            System.err.println(e.getLocalizedMessage());
+            System.exit(1);
         }
     }
 
-    public static void listPorts(Options.ListPorts options) {
+    public static void listPorts(Options.ListPorts options) throws IOException {
         if (options.verbose) {
             System.out.println("Available Serial Ports (verbose):\n");
             var ports = SerialPort.getCommPorts();
@@ -107,13 +112,10 @@ public class App {
         // TODO: Implement
     }
 
-    public static void getInfo(Options.Info options) {
+    public static void getInfo(Options.Info options) throws IOException {
         try (Client client = new Client(options.port)) {
             Client.Info info = client.getInfo();
             System.out.print(info.formatInfo());
-        } catch (Client.ClientException e) {
-            System.err.println("Error: " + e.getMessage());
-            System.exit(1);
         }
     }
 }

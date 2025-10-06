@@ -1,6 +1,8 @@
 package spiflasher;
 
 import com.fazecast.jSerialComm.SerialPort;
+import com.fazecast.jSerialComm.SerialPortInvalidPortException;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,11 +33,11 @@ public class Client implements AutoCloseable {
     private InputStream inputStream;
     private OutputStream outputStream;
 
-    public Client(String port) throws ClientException {
-        this.serialPort = SerialPort.getCommPort(port);
-
-        if (this.serialPort == null) {
-            throw new ClientException("Could not find serial port: " + port);
+    public Client(String port) throws IOException {
+        try {
+            this.serialPort = SerialPort.getCommPort(port);
+        } catch (SerialPortInvalidPortException e) {
+            throw new ReportableException("Invalid serial port: " + port, e);
         }
 
         // Configure serial port settings to match Python code
@@ -50,7 +52,7 @@ public class Client implements AutoCloseable {
 
         // Open the port
         if (!serialPort.openPort()) {
-            throw new ClientException("Failed to open serial port: " + port);
+            throw new ReportableException("Failed to open serial port: " + port);
         }
 
         // Block on read for up to 5 seconds
@@ -67,54 +69,44 @@ public class Client implements AutoCloseable {
     /**
      * Write a single byte to the serial port
      */
-    private void writeByte(int value) throws ClientException {
-        try {
-            outputStream.write(value & 0xFF);
-            outputStream.flush();
-        } catch (IOException e) {
-            throw new ClientException("Failed to write to serial port: " + e.getMessage(), e);
-        }
+    private void writeByte(int value) throws IOException {
+        outputStream.write(value & 0xFF);
+        outputStream.flush();
     }
 
     /**
      * Read a single byte from the serial port
      */
-    private int readByte() throws ClientException {
-        try {
-            int value = inputStream.read();
-            if (value == -1) {
-                throw new ClientException("Unexpected end of stream while reading from serial port");
-            }
-            return value;
-        } catch (IOException e) {
-            throw new ClientException("Failed to read from serial port: " + e.getMessage(), e);
+    private int readByte() throws IOException {
+        int value = inputStream.read();
+        if (value == -1) {
+            throw new ReportableException(
+                    "Unexpected end of stream while reading from serial port");
         }
+        return value;
     }
 
     /**
      * Read multiple bytes from the serial port
      */
-    private byte[] readBytes(int count) throws ClientException {
-        try {
-            byte[] buffer = new byte[count];
-            int bytesRead = 0;
-            while (bytesRead < count) {
-                int result = inputStream.read(buffer, bytesRead, count - bytesRead);
-                if (result == -1) {
-                    throw new ClientException("Unexpected end of stream while reading from serial port");
-                }
-                bytesRead += result;
+    private byte[] readBytes(int count) throws IOException {
+        byte[] buffer = new byte[count];
+        int bytesRead = 0;
+        while (bytesRead < count) {
+            int result = inputStream.read(buffer, bytesRead, count - bytesRead);
+            if (result == -1) {
+                throw new ReportableException(
+                        "Unexpected end of stream while reading from serial port");
             }
-            return buffer;
-        } catch (IOException e) {
-            throw new ClientException("Failed to read from serial port: " + e.getMessage(), e);
+            bytesRead += result;
         }
+        return buffer;
     }
 
     /**
      * Check response code and throw exception if not successful
      */
-    private void checkResponseCode() throws ClientException {
+    private void checkResponseCode() throws IOException {
         int responseCode = readByte();
 
         if (responseCode == REQ_SUCCESS) {
@@ -130,30 +122,36 @@ public class Client implements AutoCloseable {
                 int command = readByte();
                 errorMessage = "Command not recognized: " + command;
             }
-            case REQ_ADDR_READ_TIMEOUT -> errorMessage = "Teensy timed out when receiving the address bytes. Did you send the correct number of bytes?";
-            case REQ_PAGE_READ_TIMEOUT -> errorMessage = "Teensy timed out when receiving the block data from your PC.";
-            case REQ_WRITE_PROTECTED -> errorMessage = "Operation failed because NOR chip has write protection enabled.";
-            default -> errorMessage = "Received unknown error code: " + responseCode;
+            case REQ_ADDR_READ_TIMEOUT -> errorMessage = """
+                    Teensy timed out when receiving the address bytes. Did you send the \
+                    correct number of bytes?";
+                    """;
+            case REQ_PAGE_READ_TIMEOUT -> errorMessage =
+                    "Teensy timed out when receiving the block data from your PC.";
+            case REQ_WRITE_PROTECTED -> errorMessage =
+                    "Operation failed because NOR chip has write protection enabled.";
+            default -> errorMessage =
+                    "Received unknown error code: " + responseCode;
         }
 
-        throw new ClientException(errorMessage);
+        throw new RuntimeException(errorMessage);
     }
 
     /**
      * Record class to hold SPI chip information
      */
     public static record Info(
-        int rdidManufacturer,
-        int rdidMemoryType,
-        int rdidCapacity,
-        String manufacturerName,
-        String chipType,
-        int spiBlockCount,
-        int spiSectorsPerBlock,
-        int spiSectorSize,
-        int spiAddressLength,
-        boolean spiUse3ByteCmds
-    ) {
+            int rdidManufacturer,
+            int rdidMemoryType,
+            int rdidCapacity,
+            String manufacturerName,
+            String chipType,
+            int spiBlockCount,
+            int spiSectorsPerBlock,
+            int spiSectorSize,
+            int spiAddressLength,
+            boolean spiUse3ByteCmds) {
+
         public int spiBlockSize() {
             return spiSectorsPerBlock * spiSectorSize;
         }
@@ -181,8 +179,12 @@ public class Client implements AutoCloseable {
             StringBuilder sb = new StringBuilder();
             sb.append("SPI Information\n");
             sb.append("---------------\n");
-            sb.append(String.format("Chip manufacturer: %s (0x%02x)\n", manufacturerName, rdidManufacturer));
-            sb.append(String.format("Chip type:         %s (0x%02x, 0x%02x)\n", chipType, rdidMemoryType, rdidCapacity));
+            sb.append(String.format(
+                    "Chip manufacturer: %s (0x%02x)\n",
+                    manufacturerName, rdidManufacturer));
+            sb.append(String.format(
+                    "Chip type:         %s (0x%02x, 0x%02x)\n",
+                    chipType, rdidMemoryType, rdidCapacity));
 
             // Format chip size (KB or MB based on size)
             if (chipSizeKB() <= 8192) {
@@ -204,7 +206,7 @@ public class Client implements AutoCloseable {
     /**
      * Check if we are connected to the Teensy and verify that it is running the correct version
      */
-    private void ping() throws ClientException {
+    private void ping() throws IOException {
         writeByte(CMD_SCRIPT_INFO);
 
         int responseCode = readByte();
@@ -212,11 +214,11 @@ public class Client implements AutoCloseable {
         int minor = readByte();
 
         if (responseCode != REQ_SUCCESS) {
-            throw new ClientException("Ping failed with exit code " + responseCode);
+            throw new ReportableException("Ping failed with exit code " + responseCode);
         }
 
         if (major != VERSION_MAJOR || minor != VERSION_MINOR) {
-            throw new ClientException(String.format(
+            throw new ReportableException(String.format(
                 "Ping failed (expected v%d.%02d, got v%d.%02d)",
                 VERSION_MAJOR, VERSION_MINOR, major, minor));
         }
@@ -225,7 +227,7 @@ public class Client implements AutoCloseable {
     /**
      * Get SPI chip information
      */
-    public Info getInfo() throws ClientException {
+    public Info getInfo() throws IOException {
         // Read SPI IDs
         writeByte(CMD_SPI_INFO);
         checkResponseCode();
@@ -254,7 +256,9 @@ public class Client implements AutoCloseable {
                 addressLength = 4;
                 use3ByteCmds = false;
             } else {
-                throw new ClientException(String.format("Unknown Macronix chip type (0x%02x, 0x%02x)", rdidMemoryType, rdidCapacity));
+                throw new ReportableException(String.format(
+                        "Unknown Macronix chip type (0x%02x, 0x%02x)",
+                        rdidMemoryType, rdidCapacity));
             }
         } else if (rdidManufacturer == 0x01) {
             manufacturerName = "Spansion/Cypress";
@@ -266,10 +270,14 @@ public class Client implements AutoCloseable {
                 addressLength = 4;
                 use3ByteCmds = false;
             } else {
-                throw new ClientException(String.format("Unknown Spansion/Cypress chip type (0x%02x, 0x%02x)", rdidMemoryType, rdidCapacity));
+                throw new ReportableException(String.format(
+                        "Unknown Spansion/Cypress chip type (0x%02x, 0x%02x)",
+                        rdidMemoryType, rdidCapacity));
             }
         } else {
-            throw new ClientException(String.format("Unknown chip manufacturer (0x%02x)", rdidManufacturer));
+            throw new ReportableException(String.format(
+                    "Unknown chip manufacturer (0x%02x)",
+                    rdidManufacturer));
         }
 
         return new Info(
@@ -302,19 +310,6 @@ public class Client implements AutoCloseable {
                 // Ignore close errors
             }
             serialPort.closePort();
-        }
-    }
-
-    /**
-     * Custom exception for Client operations
-     */
-    public static class ClientException extends RuntimeException {
-        public ClientException(String message) {
-            super(message);
-        }
-
-        public ClientException(String message, Throwable cause) {
-            super(message, cause);
         }
     }
 }
