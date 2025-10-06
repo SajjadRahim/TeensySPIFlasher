@@ -1,4 +1,4 @@
-package org.example;
+package spiflasher;
 
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;

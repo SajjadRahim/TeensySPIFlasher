@@ -1,5 +1,5 @@
 [  {
-    "name": "org.example.Options$Write",
+    "name": "spiflasher.Options$Write",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
@@ -8,7 +8,7 @@
     "allPublicFields": true
   },
   {
-    "name": "org.example.Options$EraseChip",
+    "name": "spiflasher.Options$EraseChip",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
@@ -17,7 +17,7 @@
     "allPublicFields": true
   },
   {
-    "name": "org.example.Options$Info",
+    "name": "spiflasher.Options$Info",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
@@ -26,7 +26,7 @@
     "allPublicFields": true
   },
   {
-    "name": "org.example.Options$Main",
+    "name": "spiflasher.Options$Main",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
@@ -35,7 +35,7 @@
     "allPublicFields": true
   },
   {
-    "name": "org.example.Options$ListPorts",
+    "name": "spiflasher.Options$ListPorts",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
@@ -44,7 +44,7 @@
     "allPublicFields": true
   },
   {
-    "name": "org.example.Options$Dump",
+    "name": "spiflasher.Options$Dump",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,

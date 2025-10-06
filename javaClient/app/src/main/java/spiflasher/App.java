@@ -1,4 +1,4 @@
-package org.example;
+package spiflasher;
 
 import com.fazecast.jSerialComm.SerialPort;
 import picocli.CommandLine;
