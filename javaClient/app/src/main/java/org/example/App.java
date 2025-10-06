@@ -108,7 +108,12 @@ public class App {
     }
 
     public static void getInfo(Options.Info options) {
-        System.out.println("Getting device information from port " + options.port);
-        // TODO: Implement
+        try (Client client = new Client(options.port)) {
+            Client.Info info = client.getInfo();
+            System.out.print(info.formatInfo());
+        } catch (Client.ClientException e) {
+            System.err.println("Error: " + e.getMessage());
+            System.exit(1);
+        }
     }
 }
