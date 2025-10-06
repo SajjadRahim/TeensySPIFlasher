@@ -145,31 +145,23 @@ public class Client implements AutoCloseable {
             int rdidMemoryType,
             int rdidCapacity,
             String manufacturerName,
-            String chipType,
-            int spiBlockCount,
-            int spiSectorsPerBlock,
-            int spiSectorSize,
-            int spiAddressLength,
-            boolean spiUse3ByteCmds) {
+            String partNumber,
+            int blockCount,
+            int sectorsPerBlock,
+            int sectorSizeBytes,
+            int addressLength,
+            boolean threeByteCommands) {
 
-        public int spiBlockSize() {
-            return spiSectorsPerBlock * spiSectorSize;
+        public int blockSizeBytes() {
+            return sectorsPerBlock * sectorSizeBytes;
         }
 
         public long chipSizeBytes() {
-            return (long) spiBlockSize() * spiBlockCount;
-        }
-
-        public long chipSizeKB() {
-            return chipSizeBytes() / 1024;
-        }
-
-        public long chipSizeMB() {
-            return chipSizeBytes() / (1024 * 1024);
+            return (long) blockSizeBytes() * blockCount;
         }
 
         public int totalSectors() {
-            return spiSectorsPerBlock * spiBlockCount;
+            return sectorsPerBlock * blockCount;
         }
 
         /**
@@ -184,19 +176,21 @@ public class Client implements AutoCloseable {
                     manufacturerName, rdidManufacturer));
             sb.append(String.format(
                     "Chip type:         %s (0x%02x, 0x%02x)\n",
-                    chipType, rdidMemoryType, rdidCapacity));
+                    partNumber, rdidMemoryType, rdidCapacity));
 
             // Format chip size (KB or MB based on size)
-            if (chipSizeKB() <= 8192) {
-                sb.append(String.format("Chip size:         %d KB\n", chipSizeKB()));
+            if ((chipSizeBytes() < 1024 * 1024) || (chipSizeBytes() % 1024 * 1024 != 0)) {
+                sb.append(String.format("Chip size:         %d KB\n",
+                        chipSizeBytes() / 1024));
             } else {
-                sb.append(String.format("Chip size:         %d MB\n", chipSizeMB()));
+                sb.append(String.format("Chip size:         %d MB\n",
+                        chipSizeBytes() / 1024 / 1024));
             }
 
-            sb.append(String.format("Sector size:       %d bytes\n", spiSectorSize));
-            sb.append(String.format("Block size:        %d bytes\n", spiBlockSize()));
-            sb.append(String.format("Sectors per block: %d\n", spiSectorsPerBlock));
-            sb.append(String.format("Number of blocks:  %d\n", spiBlockCount));
+            sb.append(String.format("Sector size:       %d bytes\n", sectorSizeBytes));
+            sb.append(String.format("Block size:        %d bytes\n", blockSizeBytes()));
+            sb.append(String.format("Sectors per block: %d\n", sectorsPerBlock));
+            sb.append(String.format("Number of blocks:  %d\n", blockCount));
             sb.append(String.format("Number of sectors: %d\n", totalSectors()));
 
             return sb.toString();
@@ -244,7 +238,7 @@ public class Client implements AutoCloseable {
         int sectorsPerBlock;
         int sectorSize;
         int addressLength;
-        boolean use3ByteCmds;
+        boolean useThreeByteCmds;
 
         if (rdidManufacturer == 0xC2) {
             manufacturerName = "Macronix";
@@ -254,7 +248,7 @@ public class Client implements AutoCloseable {
                 sectorsPerBlock = 16;
                 sectorSize = 0x1000;
                 addressLength = 4;
-                use3ByteCmds = false;
+                useThreeByteCmds = false;
             } else {
                 throw new ReportableException(String.format(
                         "Unknown Macronix chip type (0x%02x, 0x%02x)",
@@ -268,7 +262,7 @@ public class Client implements AutoCloseable {
                 sectorsPerBlock = 16;
                 sectorSize = 0x1000;
                 addressLength = 4;
-                use3ByteCmds = false;
+                useThreeByteCmds = false;
             } else {
                 throw new ReportableException(String.format(
                         "Unknown Spansion/Cypress chip type (0x%02x, 0x%02x)",
@@ -290,7 +284,7 @@ public class Client implements AutoCloseable {
             sectorsPerBlock,
             sectorSize,
             addressLength,
-            use3ByteCmds
+            useThreeByteCmds
         );
     }
 
