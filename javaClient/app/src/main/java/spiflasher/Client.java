@@ -12,6 +12,10 @@ public class Client implements AutoCloseable {
     // Teensy commands
     private static final int CMD_SCRIPT_INFO = 0;
     private static final int CMD_SPI_INFO = 1;
+    private static final int CMD_SPI_READ_BLOCK = 2;
+    private static final int CMD_SPI_ERASE_CHIP = 3;
+    private static final int CMD_SPI_ERASE_BLOCK = 4;
+    private static final int CMD_SPI_WRITE_BLOCK = 5;
 
     // Response codes
     private static final int REQ_SUCCESS = 0;
