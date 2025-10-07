@@ -101,6 +101,16 @@ uint8_t addressBuffer[ADDRESS_BUFFER_SIZE];
 #define DATA_BUFFER_SIZE 4096
 uint8_t dataBuffer[DATA_BUFFER_SIZE];
 
+// blocks for up to the Serial timeout
+int blockingSerialRead() {
+  uint8_t result;
+  int bytesRead = Serial.readBytes(&result, 1);
+  if (bytesRead < 1) {
+    return -1;
+  }
+  return result;
+}
+
 // Reads the 4-byte address from the serial connection. Returns false if this failed
 bool readAddress() {
   memset(addressBuffer, 0, sizeof(addressBuffer));
@@ -325,10 +335,21 @@ void writeBlock() {
 
     // Send page data
     for (uint32_t i = 0; i < SPI_PAGE_SIZE; i++) {
-      // SPI.transfer(dataBuffer[i]);
-      SPI.transfer(Serial.read());
+      // Don't use Serial.read(), because bytes from sender may not be
+      // immediately available
+      int value = blockingSerialRead();
+      if (value == -1) {
+        failedToReadPage = true;
+        break;
+      }
+      SPI.transfer(value);
     }
     digitalWrite(SS, HIGH);
+
+    if (failedToReadPage) {
+      SPI.endTransaction();
+      break;
+    }
 
     busyWaitForWriteToComplete();
 
