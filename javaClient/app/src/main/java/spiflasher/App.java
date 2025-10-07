@@ -83,8 +83,8 @@ public class App {
             var ports = SerialPort.getCommPorts();
             for (int i = 0; i < ports.length; i++) {
                 var port = ports[i];
-                System.out.println("PortPath: " + port.getSystemPortPath());
                 System.out.println("PortName: " + port.getSystemPortName());
+                System.out.println("PortPath: " + port.getSystemPortPath());
                 System.out.println("DescriptivePortName: " + port.getDescriptivePortName());
                 System.out.println("PortDescription: " + port.getPortDescription());
                 System.out.println("Manufacturer: " + port.getManufacturer());
@@ -95,8 +95,7 @@ public class App {
             }
         } else {
             for (SerialPort port : SerialPort.getCommPorts()) {
-                System.out.println(port.getSystemPortPath() +
-                        " (" + port.getDescriptivePortName() + ")");
+                System.out.println(port.getSystemPortName());
             }
         }
     }
