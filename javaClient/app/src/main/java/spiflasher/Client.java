@@ -88,9 +88,8 @@ public class Client implements AutoCloseable {
     private void writeBytes(byte[] bytes, int offset, int length) throws IOException {
         int bytesWritten = 0;
         while (bytesWritten < length) {
-            int toWrite = Math.min(1024, length - bytesWritten);
             int result = serialPort.writeBytes(
-                    bytes, toWrite, offset + bytesWritten);
+                    bytes, length - bytesWritten, offset + bytesWritten);
             if (result < 0) {
                 throw new ReportableException(
                         "Error writing to the serial port (%d)".formatted(result));
