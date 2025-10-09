@@ -44,7 +44,16 @@
     "allPublicFields": true
   },
   {
-    "name": "spiflasher.Options$Dump",
+    "name": "spiflasher.Options$Read",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "spiflasher.Options$Verify",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,

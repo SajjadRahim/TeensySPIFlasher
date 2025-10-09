@@ -4,14 +4,13 @@ import com.fazecast.jSerialComm.SerialPort;
 import com.fazecast.jSerialComm.SerialPortInvalidPortException;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.util.Arrays;
 
 public class Client implements AutoCloseable {
     private static final int VERSION_MAJOR = 0;
     private static final int VERSION_MINOR = 2;
 
-    // Teensy commands
+    // Programmer commands
     private static final int CMD_SCRIPT_INFO = 0;
     private static final int CMD_SPI_INFO = 1;
     private static final int CMD_SPI_READ_BLOCK = 2;
@@ -29,9 +28,9 @@ public class Client implements AutoCloseable {
     private static final int REQ_PAGE_READ_TIMEOUT = 6;
     private static final int REQ_PAGE_WRITE_FAILURE = 7;
 
+    private static final int DEFAULT_READ_TIMEOUT_MS = 5000;
+
     private final SerialPort serialPort;
-    private InputStream inputStream;
-    private OutputStream outputStream;
 
     public Client(String port) throws IOException {
         try {
@@ -55,35 +54,63 @@ public class Client implements AutoCloseable {
             throw new ReportableException("Failed to open serial port: " + port);
         }
 
-        // Block on read for up to 5 seconds
-        serialPort.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 5000, 0);
+        // Block on read for a short time to avoid expensive 1-byte reads
+        setReadTimeout(DEFAULT_READ_TIMEOUT_MS);
 
-        // Get input/output streams
-        this.inputStream = serialPort.getInputStream();
-        this.outputStream = serialPort.getOutputStream();
-
-        // Verify we can communicate with the Teensy
+        // Verify we can communicate with the programmer
         ping();
+    }
+
+    /**
+     * Set serial port read timeout
+     */
+    private void setReadTimeout(int timeoutMs) {
+        serialPort.setComPortTimeouts(SerialPort.TIMEOUT_READ_BLOCKING, timeoutMs, 0);
+    }
+
+    /**
+     * Get the serial port read timeout
+     */
+    private int getReadTimeout() {
+        return serialPort.getReadTimeout();
     }
 
     /**
      * Write a single byte to the serial port
      */
     private void writeByte(int value) throws IOException {
-        outputStream.write(value & 0xFF);
-        outputStream.flush();
+        writeBytes(new byte[] { (byte)(value & 0xff) }, 0, 1);
+    }
+
+    /**
+     * Write multiple bytes to the serial port
+     */
+    private void writeBytes(byte[] bytes, int offset, int length) throws IOException {
+        int bytesWritten = 0;
+        while (bytesWritten < length) {
+            int toWrite = Math.min(1024, length - bytesWritten);
+            int result = serialPort.writeBytes(
+                    bytes, toWrite, offset + bytesWritten);
+            if (result < 0) {
+                throw new ReportableException(
+                        "Error writing to the serial port (%d)".formatted(result));
+            }
+            if (result == 0) {
+                throw new ReportableException(
+                        "Unexpected zero-byte write to the serial port after %d bytes"
+                                .formatted(bytesWritten));
+            }
+            bytesWritten += result;
+        }
     }
 
     /**
      * Read a single byte from the serial port
      */
     private int readByte() throws IOException {
-        int value = inputStream.read();
-        if (value == -1) {
-            throw new ReportableException(
-                    "Unexpected end of stream while reading from serial port");
-        }
-        return value;
+        var buffer = new byte[1];
+        readBytes(1, buffer, 0);
+        return buffer[0] & 0xFF;
     }
 
     /**
@@ -91,16 +118,154 @@ public class Client implements AutoCloseable {
      */
     private byte[] readBytes(int count) throws IOException {
         byte[] buffer = new byte[count];
+        readBytes(count, buffer, 0);
+        return buffer;
+    }
+
+    private void readBytes(int count, byte[] buffer, int offset) throws IOException {
         int bytesRead = 0;
         while (bytesRead < count) {
-            int result = inputStream.read(buffer, bytesRead, count - bytesRead);
-            if (result == -1) {
+            int result = serialPort.readBytes(
+                    buffer, count - bytesRead, offset + bytesRead);
+            if (result == 0) {
+                throw new ReportableException("""
+                     Unexpected end of stream while reading from serial port \
+                     after reading %d bytes
+                     """.formatted(bytesRead)
+                );
+            }
+            if (result < 0) {
                 throw new ReportableException(
-                        "Unexpected end of stream while reading from serial port");
+                    "Error reading from the serial port (%d)".formatted(result));
             }
             bytesRead += result;
         }
+    }
+
+    private void writeFourByteAddress(int address) throws IOException {
+        byte[] addressBytes = new byte[4];
+        addressBytes[0] = (byte)((address >> 24) & 0xff);
+        addressBytes[1] = (byte)((address >> 16) & 0xff);
+        addressBytes[2] = (byte)((address >> 8) & 0xff);
+        addressBytes[3] = (byte)(address & 0xff);
+        writeBytes(addressBytes, 0, 4);
+    }
+
+    private void eraseBlock(Info info, int blockNumber) throws IOException {
+        writeByte(CMD_SPI_ERASE_BLOCK);
+        writeFourByteAddress(blockNumber * info.blockSizeBytes());
+        checkResponseCode();
+    }
+
+    private void readBlock(Info info, int blockNumber, byte[] buffer, int offset)
+            throws IOException {
+        writeByte(CMD_SPI_READ_BLOCK);
+        writeFourByteAddress(blockNumber * info.blockSizeBytes());
+        checkResponseCode();
+
+        readBytes(info.blockSizeBytes(), buffer, offset);
+    }
+
+    private void writeBlock(Info info, byte[] data, int dataOffsetBytes,
+                int blockNumber) throws IOException {
+        if (data.length < dataOffsetBytes + info.blockSizeBytes()) {
+            throw new ReportableException("""
+                Data (%d bytes) does not contain full block (%d bytes) \
+                after offset (%d bytes)
+                """.formatted(data.length, info.blockSizeBytes(), dataOffsetBytes)
+            );
+        }
+
+        // Erase the block before writing to it
+        eraseBlock(info, blockNumber);
+
+        // Write the block's new contents
+        writeByte(CMD_SPI_WRITE_BLOCK);
+        writeFourByteAddress(blockNumber * info.blockSizeBytes());
+        writeBytes(data, dataOffsetBytes, info.blockSizeBytes());
+        checkResponseCode();
+    }
+
+    public byte[] read(Info info) throws IOException {
+        var buffer = new byte[info.chipSizeBytes()];
+
+        try {
+            System.out.print("\r0 KB / 0 KB");
+            for (int block = 0; block < info.blockCount(); block++) {
+                readBlock(info, block, buffer, block * info.blockSizeBytes());
+
+                System.out.print("\r%d KB / %d KB".formatted(
+                    (block + 1) * info.blockSizeBytes() / 1024,
+                    info.blockCount() * info.blockSizeBytes() / 1024
+                ));
+                System.out.flush();
+            }
+        } finally {
+            System.out.println();
+        }
+
         return buffer;
+    }
+
+    public void write(Info info, byte[] data) throws IOException {
+        if (data.length != info.chipSizeBytes()) {
+            throw new ReportableException(
+                "File size (%d bytes) doesn't match chip size (%d bytes)"
+                .formatted(data.length, info.chipSizeBytes())
+            );
+        }
+
+        try {
+            System.out.print("\r0 KB / 0 KB");
+            for (int block = 0; block < info.blockCount(); block++) {
+                writeBlock(info, data, block * info.blockSizeBytes(), block);
+                System.out.print("\r%d KB / %d KB".formatted(
+                    (block + 1) * info.blockSizeBytes() / 1024,
+                    info.blockCount() * info.blockSizeBytes() / 1024
+                ));
+                System.out.flush();
+            }
+        } finally {
+            System.out.println();
+        }
+    }
+
+    private void verifyBlock(Info info, byte[] data, int dataOffsetBytes,
+                int blockNumber) throws IOException {
+        var buffer = new byte[info.blockSizeBytes()];
+        readBlock(info, blockNumber, buffer, 0);
+        if (!Arrays.equals(
+            data, dataOffsetBytes, dataOffsetBytes + info.blockSizeBytes(),
+            buffer, 0, info.blockSizeBytes())
+        ) {
+            throw new ReportableException(
+                    "Block verification failed (block=%d)".formatted(blockNumber));
+        }
+    }
+
+    public void verify(Info info, byte[] data) throws IOException {
+        // Validate data size matches chip size
+        if (data.length != info.chipSizeBytes()) {
+            throw new ReportableException(
+                "File size (%d bytes) doesn't match chip size (%d bytes)"
+                .formatted(data.length, info.chipSizeBytes())
+            );
+        }
+
+        try {
+            System.out.print("\r0 KB / 0 KB");
+            for (int block = 0; block < info.blockCount(); block++) {
+                verifyBlock(info, data, block * info.blockSizeBytes(), block);
+
+                System.out.print("\r%d KB / %d KB".formatted(
+                    (block + 1) * info.blockSizeBytes() / 1024,
+                    info.blockCount() * info.blockSizeBytes() / 1024
+                ));
+                System.out.flush();
+            }
+        } finally {
+            System.out.println();
+        }
     }
 
     /**
@@ -123,11 +288,11 @@ public class Client implements AutoCloseable {
                 errorMessage = "Command not recognized: " + command;
             }
             case REQ_ADDR_READ_TIMEOUT -> errorMessage = """
-                    Teensy timed out when receiving the address bytes. Did you send the \
-                    correct number of bytes?";
+                    Programmer timed out when receiving the address bytes. Did you send \
+                    the correct number of bytes?
                     """;
             case REQ_PAGE_READ_TIMEOUT -> errorMessage =
-                    "Teensy timed out when receiving the block data from your PC.";
+                    "Programmer timed out when receiving the block data from your PC.";
             case REQ_WRITE_PROTECTED -> errorMessage =
                     "Operation failed because NOR chip has write protection enabled.";
             default -> errorMessage =
@@ -156,8 +321,8 @@ public class Client implements AutoCloseable {
             return sectorsPerBlock * sectorSizeBytes;
         }
 
-        public long chipSizeBytes() {
-            return (long) blockSizeBytes() * blockCount;
+        public int chipSizeBytes() {
+            return blockSizeBytes() * blockCount;
         }
 
         public int totalSectors() {
@@ -169,24 +334,23 @@ public class Client implements AutoCloseable {
          */
         public String formatInfo() {
             StringBuilder sb = new StringBuilder();
-            sb.append("SPI Information\n");
-            sb.append("---------------\n");
+            sb.append("Chip Information\n");
+            sb.append("----------------\n");
             sb.append(String.format(
-                    "Chip manufacturer: %s (0x%02x)\n",
+                    "Manufacturer:      %s (0x%02x)\n",
                     manufacturerName, rdidManufacturer));
             sb.append(String.format(
-                    "Chip type:         %s (0x%02x, 0x%02x)\n",
+                    "Part Number:       %s (0x%02x, 0x%02x)\n",
                     partNumber, rdidMemoryType, rdidCapacity));
 
-            // Format chip size (KB or MB based on size)
+            sb.append("\n");
             if ((chipSizeBytes() < 1024 * 1024) || (chipSizeBytes() % 1024 * 1024 != 0)) {
-                sb.append(String.format("Chip size:         %d KB\n",
+                sb.append(String.format("Size:              %d KB\n",
                         chipSizeBytes() / 1024));
             } else {
-                sb.append(String.format("Chip size:         %d MB\n",
+                sb.append(String.format("Size:              %d MB\n",
                         chipSizeBytes() / 1024 / 1024));
             }
-
             sb.append(String.format("Sector size:       %d bytes\n", sectorSizeBytes));
             sb.append(String.format("Block size:        %d bytes\n", blockSizeBytes()));
             sb.append(String.format("Sectors per block: %d\n", sectorsPerBlock));
@@ -198,7 +362,8 @@ public class Client implements AutoCloseable {
     }
 
     /**
-     * Check if we are connected to the Teensy and verify that it is running the correct version
+     * Check if we are connected to the programmer and verify that it is running the
+     * correct version
      */
     private void ping() throws IOException {
         writeByte(CMD_SCRIPT_INFO);
@@ -288,21 +453,22 @@ public class Client implements AutoCloseable {
         );
     }
 
+    public void eraseChip() throws IOException {
+        int oldTimeout = getReadTimeout();
+        try {
+            setReadTimeout(0); // very long operation; disable read timeout
+            writeByte(CMD_SPI_ERASE_CHIP);
+            checkResponseCode();
+        } finally {
+            setReadTimeout(oldTimeout);
+        }
+    }
+
     /**
      * Close the serial connection
      */
     public void close() {
         if (serialPort != null && serialPort.isOpen()) {
-            try {
-                if (inputStream != null) {
-                    inputStream.close();
-                }
-                if (outputStream != null) {
-                    outputStream.close();
-                }
-            } catch (IOException e) {
-                // Ignore close errors
-            }
             serialPort.closePort();
         }
     }

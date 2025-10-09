@@ -28,12 +28,9 @@ dependencies {
 }
 
 application {
-    applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
-}
-
-application {
-    // Define the main class for the application.
+    applicationName = 'spi-flasher'
     mainClass = 'spiflasher.App'
+    applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
 }
 
 tasks.named('test') {
@@ -53,12 +50,12 @@ if (System.getProperty('os.name').toLowerCase().contains('windows')) {
 graalvmNative {
     binaries {
         main {
-            imageName = 'TeensySPIFlasher'
+            imageName = 'spi-flasher'
             verbose = false
             jvmArgs.add('--enable-native-access=ALL-UNNAMED')
 
             // Disable JVM commandline arguments
-            // buildArgs.add('-H:-ParseRuntimeOptions')
+            buildArgs.add('-H:-ParseRuntimeOptions')
         }
     }
 }
