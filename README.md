@@ -8,7 +8,23 @@ It is partially based on hjudge's [SPIway utility](https://github.com/hjudges/NO
 
 # Supported Hardware
 - Teensy 4.0 and 4.1. This can likely be adapted to other Arduino controllers as well
-- Only the **Macronix MX25L25635F** and **Spansion S25FL256L** are supported. Code changes are required to support the other chips.
+
+# Supported Hardware
+## Macronix
+- MX25L25635F/MX25L25635E (Tested)
+- MX25L12872F
+- MX25L1006E
+
+## Winbond
+ - W25X10CL
+ - W25Q80BV
+ - W25Q256FV/W25Q256JV (Tested)
+ - 25Q16JVXXM
+ - 25Q16JVXXQ
+ - W25Q128JW
+
+## Spansion
+ - S25FL256L 
 
 This has been tested with the NOR chip still attached to the motherboard.
 
