@@ -9,7 +9,7 @@ It is partially based on hjudge's [SPIway utility](https://github.com/hjudges/NO
 # Supported Hardware
 - Teensy 4.0 and 4.1. This can likely be adapted to other Arduino controllers as well
 
-# Supported Hardware
+# Supported Chips
 ## Macronix
 - MX25L25635F/MX25L25635E (Tested)
 - MX25L12872F
