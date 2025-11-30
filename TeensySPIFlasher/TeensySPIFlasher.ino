@@ -7,7 +7,7 @@
 // Digital pins
 #define WRITE_PROTECT 14  // WP#/SIO2
 #define RESET 15          // RESET#/SIO3
-/* The SPI library uses these pins by default (pin #s are for Teensy 4.1):
+/* The SPI library uses these pins by default (pin #s are for Teensy 4.0 and Teensy 4.1):
 - SS    Pin 10    CS# / Chip select
 - MOSI  Pin 11    SI/SIO0 / Controller Out Peripheral In
 - MISO  Pin 12    SO/SIO1 / Controller In Peripheral Out
@@ -24,7 +24,7 @@
 #define CHIP_WRITE_SPEED      16000000  // but this'll vary from person to person
 #define DATA_ORDER            MSBFIRST
 #define DATA_MODE             SPI_MODE0 
-#define HAS_SECURITY_REGISTER true
+								  
 
 // These probably shouldn't be hardcoded
 #define SPI_PAGE_SIZE   256
@@ -43,7 +43,7 @@
 #define SPI_COMMAND_READ4B    0x13  // Read data bytes, starting from 4-byte address
 #define SPI_COMMAND_RDSCUR    0x2B  // Read security register
 #define SPI_COMMAND_CE        0x60  // Chip erase
-#define SPI_COMMAND_REMS      0x90  // Read electronic manufacturer and device ID
+#define SPI_COMMAND_RDID      0x9F  // Read ID (JEDEC Manufacturer ID)
 #define SPI_COMMAND_BE4B      0xDC  // Erase 64KB block by 4-byte address
 
 // Status registers. Taken directly from SPIway.c
@@ -73,7 +73,7 @@
 
 // Some constants for interacting with our Python script
 #define VERSION_MAJOR		0
-#define VERSION_MINOR		1
+#define VERSION_MINOR		2
 
 // Command IDs
 #define CMD_SCRIPT_INFO     0
@@ -93,6 +93,8 @@
 #define REQ_PAGE_READ_TIMEOUT   6
 #define REQ_PAGE_WRITE_FAILURE  7
 
+// Chip configuration
+bool hasSecurityRegister = false;
 
 // Reused values, buffers, etc.
 #define ADDRESS_BUFFER_SIZE 4
@@ -100,6 +102,16 @@ uint8_t addressBuffer[ADDRESS_BUFFER_SIZE];
 
 #define DATA_BUFFER_SIZE 4096
 uint8_t dataBuffer[DATA_BUFFER_SIZE];
+
+									  
+						  
+				 
+											   
+					  
+			  
+   
+				
+ 
 
 // Reads the 4-byte address from the serial connection. Returns false if this failed
 bool readAddress() {
@@ -124,18 +136,30 @@ void sendSpiInfo() {
   // Get SPI info
   SPI.beginTransaction(SPISettings(CHIP_READ_SPEED, DATA_ORDER, DATA_MODE));
   digitalWrite(SS, LOW);
-  SPI.transfer((uint8_t) SPI_COMMAND_REMS);
-  SPI.transfer((uint8_t) 0);
-  SPI.transfer((uint8_t) 0);
-  SPI.transfer((uint8_t) 0);
+  SPI.transfer((uint8_t) SPI_COMMAND_RDID);
+							
+							
+							
   uint8_t manufacturerId = SPI.transfer(0);
-  uint8_t deviceId = SPI.transfer(0);
+  uint8_t memoryType = SPI.transfer(0);
+  uint8_t capacityCode = SPI.transfer(0);
   digitalWrite(SS, HIGH);
   SPI.endTransaction();
 
+  // Update local chip configuration info
+  if (manufacturerId == 0xC2) { // Macronix
+    hasSecurityRegister = true;
+  } else if (manufacturerId == 0x01) { // Spansion
+    hasSecurityRegister = false;
+  } else {
+    hasSecurityRegister = false; // Default for unknown chips
+  }
+
+  // Send response
   Serial.write(REQ_SUCCESS);
   Serial.write(manufacturerId);
-  Serial.write(deviceId);
+  Serial.write(memoryType);
+  Serial.write(capacityCode);
   Serial.flush();
 }
 
@@ -173,7 +197,7 @@ uint8_t getStatus() {
 }
 
 uint8_t getSecurityStatus() {
-  if (!HAS_SECURITY_REGISTER) {
+  if (!hasSecurityRegister) {
     return 0;
   }
 
@@ -326,9 +350,20 @@ void writeBlock() {
     // Send page data
     for (uint32_t i = 0; i < SPI_PAGE_SIZE; i++) {
       // SPI.transfer(dataBuffer[i]);
+							  
+									   
+						
+								
+			  
+	   
       SPI.transfer(Serial.read());
     }
     digitalWrite(SS, HIGH);
+
+						   
+						   
+			
+	 
 
     busyWaitForWriteToComplete();
 
@@ -339,7 +374,7 @@ void writeBlock() {
       break;
     }
     // Some chips (like mine) have other registers we can check
-    else if (HAS_SECURITY_REGISTER) {
+    else if (hasSecurityRegister) {
       uint8_t securityStatus = getSecurityStatus();
       
       if ((securityStatus & SPI_SECURITY_P_FAIL) != 0) {
