@@ -16,9 +16,9 @@ It is partially based on hjudge's [SPIway utility](https://github.com/hjudges/NO
 - MX25L1006E
 
 ## Winbond
+ - W25Q256FV/W25Q256JV (Tested)
  - W25X10CL
  - W25Q80BV
- - W25Q256FV/W25Q256JV (Tested)
  - 25Q16JVXXM
  - 25Q16JVXXQ
  - W25Q128JW
