@@ -1,7 +1,7 @@
 # *************************************************************************
 # TeensySPIFlasher.py v0.1
 #
-# Teensy 4.1 version by jakatackka@gmail.com
+# Teensy 4.0 and 4.1 version by jakatackka@gmail.com
 # 
 # *************************************************************************
 # SPIway.py - Teensy++ 2.0 SPI flasher for PS4
@@ -14,6 +14,9 @@
 
 import serial, time, datetime, sys
 
+VERSION_MAJOR = 0
+VERSION_MINOR = 2
+
 class TeensySerialError(Exception):
     pass
 
@@ -21,7 +24,7 @@ class TeensySerial(object):
     BUFSIZE = 32768
 
     def __init__(self, port):
-        self.ser = serial.Serial(port, 115200, timeout = 300, rtscts = False, dsrdtr = False, xonxoff = False, writeTimeout = 60)
+        self.ser = serial.Serial(port, 9600, timeout = 300, rtscts = False, dsrdtr = False, xonxoff = False, writeTimeout = 60)
         if self.ser is None:
             raise TeensySerialError("could not open serial %s") % port
         self.ser.flushInput()
@@ -65,11 +68,10 @@ class SPIError(Exception):
     pass
 
 class SPIFlasher(TeensySerial):
-    VERSION_MAJOR = 0
-    VERSION_MINOR = 0
     # SPI_DISABLE_PULLUPS = 0
     MF_ID = 0
-    DEVICE_ID = 0
+    RDID_MEMORY_TYPE = 0
+    RDID_CAPACITY = 0
     SPI_SECTOR_SIZE = 0
     SPI_BLOCK_COUNT = 0
     SPI_SECTORS_PER_BLOCK = 0
@@ -121,7 +123,7 @@ class SPIFlasher(TeensySerial):
             sys.exit(1)
 
 
-    # Read the manufacturer and device IDs
+    # Read the manufacturer, product family, and capacity code
     def readSpiIds(self):
     #     if (self.SPI_DISABLE_PULLUPS == 0):
     #         self.write(self.CMD_PULLUPS_ENABLE)
@@ -131,12 +133,13 @@ class SPIFlasher(TeensySerial):
         self.write(self.CMD_SPI_INFO)
         self.checkResponseCode()
 
-        spi_info = self.read(2)   
+        spi_info = self.read(3)
 
-        # print "Raw ID data: 0x%02x 0x%02x" % (ord(spi_info[0]), ord(spi_info[1]))
+        # print "Raw ID data: 0x%02x 0x%02x 0x%02x" % (ord(spi_info[0]), ord(spi_info[1]), ord(spi_info[2]))
 
         self.MF_ID = ord(spi_info[0])
-        self.DEVICE_ID = ord(spi_info[1])
+        self.RDID_MEMORY_TYPE = ord(spi_info[1])
+        self.RDID_CAPACITY = ord(spi_info[2])
 
 
     def write4ByteAddress(self, address):
@@ -267,8 +270,8 @@ class SPIFlasher(TeensySerial):
 
         if self.MF_ID == 0xC2:
             print "Chip manufacturer: Macronix (0x%02x)" % self.MF_ID
-            if self.DEVICE_ID == 0x18:
-                print "Chip type:         MX25L25635F (0x%02x)" % self.DEVICE_ID
+            if self.RDID_MEMORY_TYPE == 0x20 and self.RDID_CAPACITY == 0x19:
+                print "Chip type:         MX25L25635F (0x%02x, 0x%02x)" % (self.RDID_MEMORY_TYPE, self.RDID_CAPACITY)
                 self.SPI_BLOCK_COUNT = 512
                 self.SPI_SECTORS_PER_BLOCK = 16
                 self.SPI_SECTOR_SIZE = 0x1000
@@ -277,58 +280,114 @@ class SPIFlasher(TeensySerial):
                 self.SPI_ADDRESS_LENGTH = 4
                 self.SPI_USE_3BYTE_CMDS = False
 
-            # elif self.DEVICE_ID == 0x10:
-            #     print "Chip type:         MX25L1006E (0x%02x)" % self.DEVICE_ID
-            #     self.SPI_BLOCK_COUNT = 2
-            #     self.SPI_SECTORS_PER_BLOCK = 16
-            #     self.SPI_SECTOR_SIZE = 0x1000
-            #     self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
-            #     self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
-            #     self.SPI_ADDRESS_LENGTH = 3
-            #     self.SPI_USE_3BYTE_CMDS = False
+            elif self.RDID_MEMORY_TYPE == 0x20 and self.RDID_CAPACITY == 0x18:
+                print "Chip type:         MX25L12872F (0x%02x, 0x%02x)" % (self.RDID_MEMORY_TYPE, self.RDID_CAPACITY)
+                self.SPI_BLOCK_COUNT = 256
+                self.SPI_SECTORS_PER_BLOCK = 16
+                self.SPI_SECTOR_SIZE = 0x1000
+                self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
+                self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
+                self.SPI_ADDRESS_LENGTH = 3
+                self.SPI_USE_3BYTE_CMDS = False
+                
+            elif self.RDID_MEMORY_TYPE == 0x20 and self.RDID_CAPACITY == 0x11:
+                print "Chip type:         MX25L1006E (0x%02x)" % self.RDID_MEMORY_TYPE
+                self.SPI_BLOCK_COUNT = 2
+                self.SPI_SECTORS_PER_BLOCK = 16
+                self.SPI_SECTOR_SIZE = 0x1000
+                self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
+                self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
+                self.SPI_ADDRESS_LENGTH = 3
+                self.SPI_USE_3BYTE_CMDS = False
 
             else:
-                print "Chip type:         Unknown (0x%02x)" % self.DEVICE_ID
+                print "Chip type:         Unknown (0x%02x, 0x%02x)" % (self.RDID_MEMORY_TYPE, self.RDID_CAPACITY)
                 self.close()
                 sys.exit(1)
 
-        # elif self.MF_ID == 0xEF:
-        #     print "Chip manufacturer: Winbond (0x%02x)"%self.MF_ID
-        #     if self.DEVICE_ID == 0x10:
-        #         print "Chip type:         W25X10CL (0x%02x)"%self.DEVICE_ID
-        #         self.SPI_BLOCK_COUNT = 2
-        #         self.SPI_SECTORS_PER_BLOCK = 16
-        #         self.SPI_SECTOR_SIZE = 0x1000
-        #         self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
-        #         self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
-        #         self.SPI_ADDRESS_LENGTH = 3
-        #         self.SPI_USE_3BYTE_CMDS = False
-        #     elif self.DEVICE_ID == 0x13:
-        #         print "Chip type:         W25Q80BV (0x%02x)"%self.DEVICE_ID
-        #         self.SPI_BLOCK_COUNT = 16
-        #         self.SPI_SECTORS_PER_BLOCK = 16
-        #         self.SPI_SECTOR_SIZE = 0x1000
-        #         self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
-        #         self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
-        #         self.SPI_ADDRESS_LENGTH = 3
-        #         self.SPI_USE_3BYTE_CMDS = False
-        #     elif self.DEVICE_ID == 0x18:
-        #         print "Chip type:         W25Q256FV (0x%02x)"%self.DEVICE_ID
-        #         self.SPI_BLOCK_COUNT = 512
-        #         self.SPI_SECTORS_PER_BLOCK = 16
-        #         self.SPI_SECTOR_SIZE = 0x1000
-        #         self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
-        #         self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
-        #         self.SPI_ADDRESS_LENGTH = 4
-        #         self.SPI_USE_3BYTE_CMDS = True
+        elif self.MF_ID == 0xEF:
+            print "Chip manufacturer: Winbond (0x%02x)"%self.MF_ID
+            if self.RDID_MEMORY_TYPE == 0x10:
+                print "Chip type:         W25X10CL (0x%02x)"%self.RDID_MEMORY_TYPE
+                self.SPI_BLOCK_COUNT = 2
+                self.SPI_SECTORS_PER_BLOCK = 16
+                self.SPI_SECTOR_SIZE = 0x1000
+                self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
+                self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
+                self.SPI_ADDRESS_LENGTH = 3
+                self.SPI_USE_3BYTE_CMDS = False
+            elif self.RDID_MEMORY_TYPE == 0x13:
+                print "Chip type:         W25Q80BV (0x%02x)"%self.RDID_MEMORY_TYPE
+                self.SPI_BLOCK_COUNT = 16
+                self.SPI_SECTORS_PER_BLOCK = 16
+                self.SPI_SECTOR_SIZE = 0x1000
+                self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
+                self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
+                self.SPI_ADDRESS_LENGTH = 3
+                self.SPI_USE_3BYTE_CMDS = False
+            elif self.RDID_MEMORY_TYPE == 0x40 and self.RDID_CAPACITY == 0x19:
+                print "Chip type:         W25Q256FV (0x%02x)"%self.RDID_MEMORY_TYPE
+                self.SPI_BLOCK_COUNT = 512
+                self.SPI_SECTORS_PER_BLOCK = 16
+                self.SPI_SECTOR_SIZE = 0x1000
+                self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
+                self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
+                self.SPI_ADDRESS_LENGTH = 4
+                self.SPI_USE_3BYTE_CMDS = True
 
-        #     else:
-        #         print "Chip type:         unknown (0x%02x)"%self.DEVICE_ID
-        #         self.close()
-        #         sys.exit(1)
+            elif self.RDID_MEMORY_TYPE == 0x70 and self.RDID_CAPACITY == 0x15:
+                print "Chip type:         25Q16JVXXM (0x%02x)"%self.RDID_MEMORY_TYPE
+                self.SPI_BLOCK_COUNT = 32
+                self.SPI_SECTORS_PER_BLOCK = 16
+                self.SPI_SECTOR_SIZE = 0x1000
+                self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
+                self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
+                self.SPI_ADDRESS_LENGTH = 3
+                self.SPI_USE_3BYTE_CMDS = False
+
+            elif self.RDID_MEMORY_TYPE == 0x40 and self.RDID_CAPACITY == 0x15:
+                print "Chip type:         25Q16JVXXQ (0x%02x)"%self.RDID_MEMORY_TYPE
+                self.SPI_BLOCK_COUNT = 32
+                self.SPI_SECTORS_PER_BLOCK = 16
+                self.SPI_SECTOR_SIZE = 0x1000
+                self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
+                self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
+                self.SPI_ADDRESS_LENGTH = 3
+                self.SPI_USE_3BYTE_CMDS = False
+                
+            elif self.RDID_MEMORY_TYPE == 0x60:
+                print "Chip type:         W25Q128JW (0x%02x)"%self.RDID_MEMORY_TYPE
+                self.SPI_BLOCK_COUNT = 256
+                self.SPI_SECTORS_PER_BLOCK = 16
+                self.SPI_SECTOR_SIZE = 0x1000
+                self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
+                self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
+                self.SPI_ADDRESS_LENGTH = 3
+                self.SPI_USE_3BYTE_CMDS = False
+                
+            else:
+                print "Chip type:         unknown (0x%02x)"%self.RDID_MEMORY_TYPE
+                self.close()
+                sys.exit(1)
+                
+        elif self.MF_ID == 0x01:
+            print "Chip manufacturer: Spansion/Cypress (0x%02x)" % self.MF_ID
+            if self.RDID_MEMORY_TYPE == 0x60 and self.RDID_CAPACITY == 0x19:
+                print "Chip type:         S25FL256L (0x%02x, 0x%02x)" % (self.RDID_MEMORY_TYPE, self.RDID_CAPACITY)
+                self.SPI_BLOCK_COUNT = 512
+                self.SPI_SECTORS_PER_BLOCK = 16
+                self.SPI_SECTOR_SIZE = 0x1000
+                self.SPI_TOTAL_SECTORS = self.SPI_SECTORS_PER_BLOCK * self.SPI_BLOCK_COUNT
+                self.SPI_BLOCK_SIZE = self.SPI_SECTORS_PER_BLOCK * self.SPI_SECTOR_SIZE
+                self.SPI_ADDRESS_LENGTH = 4
+                self.SPI_USE_3BYTE_CMDS = False
+            else:
+                print "Chip type:         Unknown (0x%02x, 0x%02x)" % (self.RDID_MEMORY_TYPE, self.RDID_CAPACITY)
+                self.close()
+                sys.exit(1)
         else:
             print "Chip manufacturer: Unknown (0x%02x)" % self.MF_ID
-            print "Chip type:         Unknown (0x%02x)" % self.DEVICE_ID
+            print "Chip type:         Unknown (0x%02x, 0x%02x)" % (self.RDID_MEMORY_TYPE, self.RDID_CAPACITY)
             self.close()
             sys.exit(1)
 
@@ -426,10 +485,8 @@ def printHelp():
         
 
 if __name__ == "__main__":
-    VERSION_MAJOR = 0
-    VERSION_MINOR = 1
 
-    print "TeensySPIFlasher v%d.%02d - Teensy++ 4.1 SPI Flasher for PS4" % (VERSION_MAJOR, VERSION_MINOR)
+    print "TeensySPIFlasher v%d.%02d - Teensy++ 4.0 and 4.1 SPI Flasher for PS4" % (VERSION_MAJOR, VERSION_MINOR)
     print "Copyright (C) 2024 jakatackka@gmail.com"
     print
 
