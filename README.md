@@ -19,8 +19,8 @@ It is partially based on hjudge's [SPIway utility](https://github.com/hjudges/NO
  - W25Q256FV/W25Q256JV (Tested)
  - W25X10CL
  - W25Q80BV
- - 25Q16JVXXM
- - 25Q16JVXXQ
+ - W25Q16JVXXM
+ - W25Q16JVXXQ
  - W25Q128JW
 
 ## Spansion
@@ -31,8 +31,8 @@ This has been tested with the NOR chip still attached to the motherboard.
 # Requirements
 ## Python Setup
 Requirements:
-- Python 2.7
-- pyserial 2.5
+- [Python 2.7](http://www.python.org/ftp/python/2.7.2/python-2.7.2.msi)
+- [pyserial 2.5](http://pypi.python.org/packages/any/p/pyserial/pyserial-2.5.win32.exe)
 
 ## Teensy Software Setup
 I am not distributing a `.hex` file because I haven't added a way to adjust the read/write clock speeds. You may need to adjust them to find values that are stable for your chip.
