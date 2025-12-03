@@ -70,3 +70,9 @@ Write a new ROM to the chip and verify the contents are correct:
 Erase the chip:
 
 > `TeensySPIFlasher.py COMx erasechip`
+
+
+# Credits
+ - hjudge (SPIway utility)
+ - Jak Atackka ([TeensySPIFlasher](https://github.com/alex-joens/TeensySPIFlasher))
+ - John Vasileff ([TeensySPIFlasher](https://github.com/jvasileff/TeensySPIFlasher/tree/support-spansion-and-teensy-40))
